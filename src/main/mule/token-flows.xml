@@ -1,24 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:os="http://www.mulesoft.org/schema/mule/os"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd">
+	<oauth:token-manager-config name="Token_manager_config" doc:name="Token manager config" doc:id="9df68b2c-83b1-480e-abaf-6e782ef29339" />
 	<flow name="getToken" doc:id="f840a8a4-bf19-4e13-8b35-ab118261a9f1" >
-		<os:retrieve doc:name="Retrieve token" doc:id="1426107a-e6d6-48d0-bcb1-05a4ae529f62" key="jwt-token" objectStore="Object_store" target="token">
+		<os:retrieve doc:name="Retrieve token from ObjectStore" doc:id="1426107a-e6d6-48d0-bcb1-05a4ae529f62" key="jwt-token" objectStore="Object_store" target="token">
 			<os:default-value ><![CDATA[#['NO TOKEN']]]></os:default-value>
 		</os:retrieve>
 		<choice doc:name="Choice" doc:id="b4411b5a-0b51-4300-8de0-2c0b0a44eb40" >
 			<when expression="#[(vars.token == 'NO TOKEN') or (vars.token.expiration &lt;= now())]">
-				<flow-ref doc:name="jwt-flows::generateToken" doc:id="b134eb4f-fce6-4650-a248-0cb3f4b91227" name="generateToken" target="token"/>
+				<flow-ref doc:name="Generate a new token; token is invalid" doc:id="b134eb4f-fce6-4650-a248-0cb3f4b91227" name="generateToken" target="token"/>
 			</when>
 		</choice>
 		<set-payload value="#[vars.token.token]" doc:name="return token" doc:id="8e6152ec-2df0-4006-8049-6997cb77991e" />
 	</flow>
 	<sub-flow name="generateToken" doc:id="a270be6a-61d5-4025-98c6-a9b38c4834ed" >
-		<ee:transform doc:name="RSA::PKCS8JWT CREATE JWT" doc:id="cd34c04e-312f-41fe-9699-a775127653c3" >
+		<ee:transform doc:name="Generate RSA signed JWT" doc:id="cd34c04e-312f-41fe-9699-a775127653c3" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -27,7 +29,7 @@ output application/java
 import jwt::RSA
 ---
 {
-	token: RSA::PKCS8JWT(
+	token: RSA::JWT(
 		{
 			iss: p('google.clientEmail'),
 			aud: 'https://oauth2.googleapis.com/token',
@@ -41,7 +43,7 @@ import jwt::RSA
 }]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<http:request method="POST" doc:name="exchange JWT for access_token" doc:id="8b7057a8-19e4-4f5e-a993-804ec5fca476" config-ref="Google_OAuth_Request" path="/token">
+		<http:request method="POST" doc:name="Exchange JWT for Access Token - googleapis.com/token" doc:id="8b7057a8-19e4-4f5e-a993-804ec5fca476" config-ref="Google_OAuth_Request" path="/token">
 			<http:body ><![CDATA[#[%dw 2.0
 output application/x-www-form-urlencoded
 ---
@@ -50,18 +52,14 @@ output application/x-www-form-urlencoded
 	assertion: vars.token.token
 }]]]></http:body>
 		</http:request>
-		<ee:transform doc:name="map to objectstore payload" doc:id="6a80bba5-1d7e-4616-a2e8-93f6983258c2">
-			<ee:message>
-				<ee:set-payload><![CDATA[%dw 2.0
+		<os:store doc:name="Store token in ObjectStore" doc:id="550991f9-0a17-49b2-a718-d3b40d1d77f9" key="jwt-token" objectStore="Object_store">
+			<os:value ><![CDATA[#[%dw 2.0
 output application/java
 ---
 {
 	token: payload.access_token,
 	expiration: vars.token.expiration
-}]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
-		<os:store doc:name="Store token" doc:id="550991f9-0a17-49b2-a718-d3b40d1d77f9" key="jwt-token" objectStore="Object_store">
+}]]]></os:value>
 		</os:store>
 	</sub-flow>
 </mule>

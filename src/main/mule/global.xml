@@ -15,7 +15,7 @@ http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/cu
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
 	<os:config name="ObjectStore_Config" doc:name="ObjectStore Config" doc:id="867a8f33-17e7-4e2b-866b-c2b7407d7e18" />
-	<os:object-store name="Object_store" doc:name="Object store" doc:id="785b206b-4c13-405e-b26e-989433d89e77" config-ref="ObjectStore_Config" persistent="false" entryTtl="3600"/>
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="785b206b-4c13-405e-b26e-989433d89e77" config-ref="ObjectStore_Config" entryTtl="3600"/>
 	<configuration-properties doc:name="Configuration properties" doc:id="4c3389bf-7851-413d-9d26-d08ba7d645bd" file="config/configuration.yaml" />
 	<http:request-config name="Google_OAuth_Request" doc:name="HTTP Request configuration" doc:id="3f5216c0-2d16-4f1a-ae11-3f07357f47c6" >
 		<http:request-connection protocol="HTTPS" host="oauth2.googleapis.com" port="443" />
